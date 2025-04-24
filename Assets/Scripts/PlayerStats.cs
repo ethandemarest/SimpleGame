@@ -17,4 +17,6 @@ public class PlayerStats : MonoBehaviour
     public float jumpSpeed = 25f;
     public float dashTime;
     public float dashSpeed = 45f;
+
+    public float throwSpeed;
 }

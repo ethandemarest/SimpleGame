@@ -23,20 +23,20 @@ TagManager:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Ground
   - Water
   - UI
+  - Food
   - 
   - 
-  - Enemies
-  - Projectile Enemy
-  - Invincible
-  - Projectile Player
-  - Player Parts
-  - Boss Wall
-  - Background
-  - Ground
-  - Player
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
   - 
   - 
   - 

@@ -36,6 +36,7 @@ public class CameraFollow2 : MonoBehaviour
     {
         player = GameObject.FindGameObjectWithTag("Player");
         cameraMain = transform.GetChild(0).GetComponent<Camera>();
+        transform.position = player.transform.position;
     }
     private void Update()
     {

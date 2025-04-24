@@ -79,12 +79,7 @@ public class PlayerAnimator : MonoBehaviour
         animator.SetBool("Wall Grab", true);
         playerSound.psFootStepTwo();
     }
-    public void WallJump()
-    {
-        playerSound.psJump();
-        animator.SetBool("Jump", true);
-        ps.WallJump(pc.launchDir);
-    }
+
     public void Death()
     {
         CameraShaker.Instance.ShakeOnce(10f, 5f, 0.1f, 2f);

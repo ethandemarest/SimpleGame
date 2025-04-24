@@ -225,22 +225,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d232927cd3c4f134295b25c956ddf226, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  groundDetectionOffset: 0.2
-  groundDetectionRange: 0.01
+  currentIngredient: {fileID: 0}
+  hands: {fileID: 0}
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 8
+  foodMask:
+    serializedVersion: 2
+    m_Bits: 64
+  groundCastWidth: 0.3
+  groundDetectionRange: 0
   newVelocity: {x: 0, y: 0}
   movement: {x: 0, y: 0}
   lastMove: 0
-  launchDir: {x: 0, y: 0}
-  groundName: 
   jumpCount: 0
   controlEnabled: 0
+  grab: 0
   jump: 0
   falling: 1
   checkingGround: 1
   inLauncher: 0
   grounded: 1
-  dashing: 0
-  launching: 0
+  platform: {fileID: 0}
 --- !u!114 &1795330848917470444
 MonoBehaviour:
   m_ObjectHideFlags: 0

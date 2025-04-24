@@ -10,45 +10,52 @@ public class PlayerController : MonoBehaviour
     PlayerControls controls;
 
     //COMPONENTS
+    public GameObject currentFood;
+    public GameObject heldFood;
+    public GameObject hands;
     Rigidbody2D rb;
 
     //SCRIPTS
     SpriteFlip spriteFlip;
     PlayerAnimator playerAnimator;
 
-    public float groundDetectionOffset = 0.4f;
+
+    //RAYCASTS
+    public RaycastHit2D groundHit;
+    public RaycastHit2D foodHit;
+    public LayerMask groundMask;
+    public LayerMask foodMask;
+    public float groundCastWidth;
     public float groundDetectionRange = 0.01f;
+    public float foodRange;
+    public Vector3 handsOffset;
 
     //VECTORS
     [Header("||Vectors||")]
     public Vector2 newVelocity;
     public Vector2 movement;
     public float lastMove;
-    public Vector2 launchDir;
 
-    public string groundName;
-
-    [HideInInspector]
     public int jumpCount;
     [HideInInspector]
     public bool controlEnabled;
     [HideInInspector]
+    public bool grab;
     public bool jump;
     public bool falling;
     [HideInInspector]
     public bool checkingGround = true;
+    public bool canGrab = true;
 
-    bool reset;
     bool hasDied;
-
     public bool inLauncher;
 
     [Header("||Bools||")]
     public bool grounded;
-    public bool dashing;
-    public bool launching;
 
-    public RaycastHit2D facingWall;
+    public Transform platform;
+    private Vector3 lastPlatformPos;
+    private bool isOnPlatform = false;
 
     void Awake()
     {
@@ -82,6 +89,79 @@ public class PlayerController : MonoBehaviour
         grounded = false;
     }
 
+    void Update()
+    {
+        groundHit = Physics2D.BoxCast(transform.position, new Vector2(groundCastWidth,1), 0f, Vector2.down, groundDetectionRange, groundMask);
+        foodHit = Physics2D.Raycast(transform.position + new Vector3(0f,1f), new Vector3(lastMove, 0f) * foodRange, 2, foodMask);
+
+        if (groundHit)
+        {
+            Debug.Log(groundHit.transform.gameObject.name);
+        }
+        if (foodHit)
+        {
+            currentFood = foodHit.transform.gameObject;
+            currentFood.GetComponent<SpriteRenderer>().color = Color.green;
+        }
+
+        if (grab && canGrab && foodHit && heldFood == null)
+        {
+            StartCoroutine(ThrowDelay());
+            GameObject food = foodHit.transform.gameObject;
+            food.GetComponent<Rigidbody2D>().isKinematic = true;
+            food.GetComponent<Rigidbody2D>().velocity = Vector2.zero;
+            food.GetComponent<Rigidbody2D>().angularVelocity = 0f;
+
+
+            food.transform.SetParent(hands.transform);
+            food.transform.position = hands.transform.position;
+            food.transform.rotation = Quaternion.Euler(Vector2.zero);
+            heldFood = food;
+        }
+
+        if(heldFood && grab && canGrab)
+        {
+            StartCoroutine(ThrowDelay());
+            heldFood.transform.SetParent(null);
+            heldFood.GetComponent<Rigidbody2D>().isKinematic = false;
+            heldFood.GetComponent<Rigidbody2D>().AddForce(new Vector2(lastMove, 0.5f) * stats.throwSpeed);
+            heldFood.GetComponent<Rigidbody2D>().AddTorque(Random.Range(25f, 100f));
+
+            heldFood = null;
+        }
+    
+
+        //INPUT
+        jump = controls.Gameplay.Jump.triggered;
+        grab = controls.Gameplay.Dash.triggered;
+            
+        //JUMP
+        if (jump && jumpCount <= 1)
+        {
+            Jump(stats.jumpSpeed);
+        }
+
+        //FALLING
+        falling = newVelocity.y < 0 ? true : false;
+
+        //LAST MOVE
+        if (movement.x > 0.2 || movement.x < -0.2)
+        {
+            lastMove = movement.normalized.x;
+        }
+
+        //Moving Platform Info
+        if (isOnPlatform && platform != null)
+        {
+            Vector3 platformMovement = platform.position - lastPlatformPos;
+            transform.position += platformMovement;
+        }
+        if (platform != null)
+        {
+            lastPlatformPos = platform.position;
+        }
+    }
+
     private void FixedUpdate()
     {
         //APPLY MOTION TO RIGIDBODY
@@ -105,35 +185,13 @@ public class PlayerController : MonoBehaviour
         {
             newVelocity.y = Mathf.MoveTowards(newVelocity.y, -1.5f, 1000 * Time.fixedDeltaTime);
         }
-        if (!grounded && !dashing && !falling) // JUMPING
+        if (!grounded && !falling) // JUMPING
         {
             newVelocity.y = Mathf.MoveTowards(newVelocity.y, -1f, stats.maxJumpSpeed * Time.fixedDeltaTime);
         }
-        if (falling && !dashing) // FALLING
+        if (falling) // FALLING
         {
             newVelocity.y = Mathf.MoveTowards(newVelocity.y, stats.gravity, stats.maxFallSpeed * Time.fixedDeltaTime);
-        }
-    }
-
-    void Update()
-    {
-        //INPUT
-        reset = controls.Gameplay.Reset.triggered;
-        jump = controls.Gameplay.Jump.triggered;
-
-        //JUMP
-        if (jump && jumpCount <= 1)
-        {
-            Jump(stats.jumpSpeed);
-        }
-
-        //FALLING
-        falling = newVelocity.y < 0 ? true : false;
-
-        //LAST MOVE
-        if (movement.x > 0.2 || movement.x < -0.2)
-        {
-            lastMove = movement.normalized.x;
         }
     }
 
@@ -148,57 +206,43 @@ public class PlayerController : MonoBehaviour
             }
         }
     }
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Missle"))
+        if (collision.gameObject.CompareTag("Ground") && groundHit)            
         {
-            if (!hasDied)
-            {
-                hasDied = true;
-                DestroyPlayer();
-            }
-        }
-        if (collision.gameObject.CompareTag("Ground"))
-        {
-            transform.parent = collision.gameObject.transform;
-            ContactPoint2D[] contacts = collision.contacts;
+            GameObject gameObjectA = collision.gameObject;
+            GameObject gameObjectB = groundHit.transform.gameObject;
 
-            if (contacts[0].normal == Vector2.down || contacts[1].normal == Vector2.down) //CEILING
-            {
-                newVelocity = new Vector2(newVelocity.x, 0f);
-            }
-            else if (contacts[0].normal == Vector2.up || contacts[1].normal == Vector2.up) //GROUND
-            {
-                newVelocity = new Vector2(newVelocity.x, 0f);
-            }
-            else
-            {
-                newVelocity = new Vector2(0f, newVelocity.y);
-            }
-        }
-    }
-    private void OnCollisionStay2D(Collision2D collision)
-    {
-        if (collision.gameObject.CompareTag("Ground") && checkingGround) //GROUND CHECK
-        {
-            ContactPoint2D[] contacts = collision.contacts;
-
-            if (contacts[0].normal == Vector2.up || contacts[1].normal == Vector2.up) //GROUND
+            if (gameObjectA == gameObjectB)
             {
                 JumpReset();
                 grounded = true;
+                platform = gameObjectB.transform;
+                lastPlatformPos = platform.position;
+                isOnPlatform = true;
             }
         }
     }
+
+    
     private void OnCollisionExit2D(Collision2D collision)
     {
-        grounded = false;
-        LevelOut();
-        if (!dashing)
+        if (!groundHit)
         {
+            grounded = false;
+            LevelOut();
             Fall();
+
+            if (collision.gameObject.CompareTag("Ground"))
+            {
+                platform = null;
+                isOnPlatform = false;
+            }
         }
+
     }
+    
     void JumpReset()
     {
         jumpCount = 0;
@@ -224,6 +268,13 @@ public class PlayerController : MonoBehaviour
         playerAnimator.Jump();
         newVelocity = new Vector2(rb.velocity.x, jumpForce);
         grounded = false;
+    }
+
+    IEnumerator ThrowDelay()
+    {
+        canGrab = false;
+        yield return new WaitForSeconds(0.5f);
+        canGrab = true;
     }
     IEnumerator JumpDelay()
     { 

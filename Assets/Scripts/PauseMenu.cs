@@ -6,7 +6,6 @@ using UnityEngine.EventSystems;
 
 public class PauseMenu : MonoBehaviour
 {
-    SoundManagerMusic music;
     public GameObject buttonCont;
     public GameObject buttonQuit;
     public GameObject pauseFade;
@@ -23,7 +22,6 @@ public class PauseMenu : MonoBehaviour
 
     void Start()
     {
-        music = GameObject.Find("Music Manager").GetComponent<SoundManagerMusic>();
         pauseFade.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0);
         pausePanel.GetComponent<RectTransform>().anchoredPosition = Vector2.down * offscreenAmount;
         uiControls = new UIControls();
@@ -31,11 +29,6 @@ public class PauseMenu : MonoBehaviour
     }
     private void Update()
     {
-        if (uiControls.PauseMenu.Mute.triggered)
-        {
-            music.ToggleMute();
-        }
-
         //TOGGLES MOUSE AND CONTROLLER INPUT
         if (uiControls.PauseMenu.Mouse.triggered)
         {

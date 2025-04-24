@@ -7,7 +7,7 @@ public class MovingPlatform : MonoBehaviour
     Vector3 startPosition;
     public Vector3 endPosition;
 
-    public float offsetTime;
+    public float delayStart;
     public float holdTimeOpen;
     public float holdTimeClosed;
     public float duration = 3f;
@@ -17,7 +17,7 @@ public class MovingPlatform : MonoBehaviour
     void Start()
     {
         startPosition = transform.position;
-        StartCoroutine(DelayStart(offsetTime));
+        StartCoroutine(DelayStart(delayStart));
     }
 
     IEnumerator DelayStart(float delayTime)

@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class PlayerParticleSpawner : MonoBehaviour
 {
-    Rigidbody2D rb;
     PlayerController pc;
     GameObject fxLayer;
     public GameObject smoke;
@@ -17,7 +16,6 @@ public class PlayerParticleSpawner : MonoBehaviour
     {
         fxLayer = GameObject.Find("FX");
         pc = GetComponent<PlayerController>();
-        rb = GetComponent<Rigidbody2D>();
     }
     // Update is called once per frame
     private void FixedUpdate()
@@ -25,28 +23,12 @@ public class PlayerParticleSpawner : MonoBehaviour
         spawnTimer += Time.deltaTime;
         angle = Random.Range(0f, 360);
 
-
         //RUNNING
         if (pc.grounded && pc.movement.x != 0)
         {
-            if(spawnTimer >= 0.1 && pc.dashing == false)
+            if(spawnTimer >= 0.1)
             {
                 SpawnSmoke(transform.position, new Vector3(0f, 0f, angle));
-                spawnTimer = 0;
-            }
-        }
-
-        //DASHING
-        if (spawnTimer >= 0.05f && pc.dashing)
-        {
-            if (pc.grounded)
-            {
-                SpawnSmoke(transform.position, new Vector3(0f, 0f, angle));
-                spawnTimer = 0;
-            }
-            if (!pc.grounded)
-            {
-                SpawnSmoke(transform.position + new Vector3(0f,0.5f), new Vector3(0f, 0f, angle));
                 spawnTimer = 0;
             }
         }
