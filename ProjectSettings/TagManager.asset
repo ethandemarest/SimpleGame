@@ -5,20 +5,10 @@ TagManager:
   serializedVersion: 2
   tags:
   - Damage
-  - Boost
-  - Checkpoint
   - Ground
-  - Bounce
-  - Reflect
   - Enemy
-  - Missle
-  - Coin
-  - Rotating Object
-  - DashReset
-  - Boss
-  - Door
-  - Button
-  - Wind
+  - Explosion
+  - Item
   layers:
   - Default
   - TransparentFX

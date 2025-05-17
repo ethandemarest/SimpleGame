@@ -9,16 +9,20 @@ public class PlayerController : MonoBehaviour
     PlayerStats stats;
     PlayerControls controls;
 
+    public AnimationCurve animCurve;
+    public float duration;
+    Coroutine attackCoroutine;
+
     //COMPONENTS
     public GameObject currentFood;
     public GameObject heldFood;
     public GameObject hands;
+    public GameObject attackZone;
     Rigidbody2D rb;
 
     //SCRIPTS
     SpriteFlip spriteFlip;
     PlayerAnimator playerAnimator;
-
 
     //RAYCASTS
     public RaycastHit2D groundHit;
@@ -42,10 +46,12 @@ public class PlayerController : MonoBehaviour
     [HideInInspector]
     public bool grab;
     public bool jump;
+    bool attack;
     public bool falling;
     [HideInInspector]
     public bool checkingGround = true;
     public bool canGrab = true;
+    bool canAttack = true;
 
     bool hasDied;
     public bool inLauncher;
@@ -91,13 +97,10 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        attackZone.transform.position = transform.position + new Vector3(lastMove*1.5f, 0) + new Vector3(0f,1f,0f);
         groundHit = Physics2D.BoxCast(transform.position, new Vector2(groundCastWidth,1), 0f, Vector2.down, groundDetectionRange, groundMask);
         foodHit = Physics2D.Raycast(transform.position + new Vector3(0f,1f), new Vector3(lastMove, 0f) * foodRange, 2, foodMask);
 
-        if (groundHit)
-        {
-            Debug.Log(groundHit.transform.gameObject.name);
-        }
         if (foodHit)
         {
             currentFood = foodHit.transform.gameObject;
@@ -107,7 +110,7 @@ public class PlayerController : MonoBehaviour
         if (grab && canGrab && foodHit && heldFood == null)
         {
             StartCoroutine(ThrowDelay());
-            GameObject food = foodHit.transform.gameObject;
+            GameObject food = foodHit.transform.gameObject;     
             food.GetComponent<Rigidbody2D>().isKinematic = true;
             food.GetComponent<Rigidbody2D>().velocity = Vector2.zero;
             food.GetComponent<Rigidbody2D>().angularVelocity = 0f;
@@ -126,15 +129,29 @@ public class PlayerController : MonoBehaviour
             heldFood.GetComponent<Rigidbody2D>().isKinematic = false;
             heldFood.GetComponent<Rigidbody2D>().AddForce(new Vector2(lastMove, 0.5f) * stats.throwSpeed);
             heldFood.GetComponent<Rigidbody2D>().AddTorque(Random.Range(25f, 100f));
-
+            if(heldFood.GetComponent<ExplosiveObject>() != null)
+            {
+                heldFood.GetComponent<ExplosiveObject>().PrimeExplosive();
+            }
             heldFood = null;
+
         }
-    
 
         //INPUT
         jump = controls.Gameplay.Jump.triggered;
         grab = controls.Gameplay.Dash.triggered;
-            
+        attack = controls.Gameplay.Attack.triggered;
+
+        if (attack && canAttack)
+        {
+            //Vector2 attackDir = new Vector2(lastMove, rb.velocity.y).normalized;
+            Vector2 attackDir = new Vector2(lastMove,1);
+            attackZone.GetComponent<AttackBox>().Attack(attackDir);
+            StartCoroutine(AttackDelay());
+
+            newVelocity = new Vector2(-lastMove * 15, 0f);
+        }
+
         //JUMP
         if (jump && jumpCount <= 1)
         {
@@ -192,6 +209,21 @@ public class PlayerController : MonoBehaviour
         if (falling) // FALLING
         {
             newVelocity.y = Mathf.MoveTowards(newVelocity.y, stats.gravity, stats.maxFallSpeed * Time.fixedDeltaTime);
+        }
+    }
+
+    IEnumerator LerpValue(Vector3 start)
+    {
+        float timeElapsed = 0;
+
+        while (timeElapsed < duration)
+        {
+            float t = timeElapsed / duration;
+            t = animCurve.Evaluate(t);
+            transform.position = Vector3.Lerp(start, new Vector3(start.x -lastMove*5, 0f), t);
+            timeElapsed += Time.deltaTime;
+
+            yield return null;
         }
     }
 
@@ -282,7 +314,13 @@ public class PlayerController : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.2f);
         checkingGround = true;
     }
-    
+    IEnumerator AttackDelay()
+    {
+        canAttack = false;
+        yield return new WaitForSecondsRealtime(0.2f);
+        canAttack = true;
+    }
+
     public void DestroyPlayer()
     {
         Destroy(gameObject);
