@@ -11,7 +11,6 @@ public class PlayerController : MonoBehaviour
 
     public AnimationCurve animCurve;
     public float duration;
-    Coroutine attackCoroutine;
 
     //COMPONENTS
     public GameObject currentFood;
@@ -97,6 +96,12 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        //INPUT
+        jump = controls.Gameplay.Jump.triggered;
+        grab = controls.Gameplay.Dash.triggered;
+        attack = controls.Gameplay.Attack.triggered;
+
+
         attackZone.transform.position = transform.position + new Vector3(lastMove*1.5f, 0) + new Vector3(0f,1f,0f);
         groundHit = Physics2D.BoxCast(transform.position, new Vector2(groundCastWidth,1), 0f, Vector2.down, groundDetectionRange, groundMask);
         foodHit = Physics2D.Raycast(transform.position + new Vector3(0f,1f), new Vector3(lastMove, 0f) * foodRange, 2, foodMask);
@@ -104,9 +109,9 @@ public class PlayerController : MonoBehaviour
         if (foodHit)
         {
             currentFood = foodHit.transform.gameObject;
-            currentFood.GetComponent<SpriteRenderer>().color = Color.green;
         }
 
+        //PICK UP ITEM
         if (grab && canGrab && foodHit && heldFood == null)
         {
             StartCoroutine(ThrowDelay());
@@ -122,34 +127,42 @@ public class PlayerController : MonoBehaviour
             heldFood = food;
         }
 
-        if(heldFood && grab && canGrab)
+        if (attack)
+        {
+            //SWORD SWING
+            if (!heldFood && canAttack)
+            {
+                Vector2 attackDir = new Vector2(lastMove, 1);
+                attackZone.GetComponent<AttackBox>().Attack(attackDir);
+                StartCoroutine(AttackDelay());
+                newVelocity = new Vector2(-lastMove * 15, 0f);
+            }
+
+            //THROW ITEM
+            if (heldFood && canGrab)
+            {
+                StartCoroutine(ThrowDelay());
+                heldFood.transform.SetParent(null);
+                heldFood.GetComponent<Rigidbody2D>().isKinematic = false;
+                heldFood.GetComponent<Rigidbody2D>().AddForce(new Vector2(lastMove, 0.5f) * stats.throwSpeed);
+                heldFood.GetComponent<Rigidbody2D>().AddTorque(Random.Range(25f, 100f));
+                if (heldFood.GetComponent<ExplosiveObject>() != null)
+                {
+                    heldFood.GetComponent<ExplosiveObject>().PrimeExplosive();
+                }
+                heldFood = null;
+            }
+        }
+
+        //DROP ITEM
+        if (heldFood && grab && canGrab)
         {
             StartCoroutine(ThrowDelay());
             heldFood.transform.SetParent(null);
             heldFood.GetComponent<Rigidbody2D>().isKinematic = false;
-            heldFood.GetComponent<Rigidbody2D>().AddForce(new Vector2(lastMove, 0.5f) * stats.throwSpeed);
+            heldFood.GetComponent<Rigidbody2D>().AddForce(new Vector2(lastMove, 0.5f) * 50);
             heldFood.GetComponent<Rigidbody2D>().AddTorque(Random.Range(25f, 100f));
-            if(heldFood.GetComponent<ExplosiveObject>() != null)
-            {
-                heldFood.GetComponent<ExplosiveObject>().PrimeExplosive();
-            }
             heldFood = null;
-
-        }
-
-        //INPUT
-        jump = controls.Gameplay.Jump.triggered;
-        grab = controls.Gameplay.Dash.triggered;
-        attack = controls.Gameplay.Attack.triggered;
-
-        if (attack && canAttack)
-        {
-            //Vector2 attackDir = new Vector2(lastMove, rb.velocity.y).normalized;
-            Vector2 attackDir = new Vector2(lastMove,1);
-            attackZone.GetComponent<AttackBox>().Attack(attackDir);
-            StartCoroutine(AttackDelay());
-
-            newVelocity = new Vector2(-lastMove * 15, 0f);
         }
 
         //JUMP
@@ -212,29 +225,14 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    IEnumerator LerpValue(Vector3 start)
-    {
-        float timeElapsed = 0;
-
-        while (timeElapsed < duration)
-        {
-            float t = timeElapsed / duration;
-            t = animCurve.Evaluate(t);
-            transform.position = Vector3.Lerp(start, new Vector3(start.x -lastMove*5, 0f), t);
-            timeElapsed += Time.deltaTime;
-
-            yield return null;
-        }
-    }
-
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.CompareTag("Damage"))
         {
             if (!hasDied)
             {
-                hasDied = true;
-                DestroyPlayer();
+                //hasDied = true;
+                //DestroyPlayer();
             }
         }
     }
@@ -305,7 +303,7 @@ public class PlayerController : MonoBehaviour
     IEnumerator ThrowDelay()
     {
         canGrab = false;
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(0.2f);
         canGrab = true;
     }
     IEnumerator JumpDelay()
