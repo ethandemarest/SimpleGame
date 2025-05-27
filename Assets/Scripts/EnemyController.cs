@@ -152,6 +152,19 @@ public class EnemyController : MonoBehaviour
             }
         }
     }
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        print("collision");
+        if (collision.gameObject.GetComponent<PhysicsObject>())
+        {
+            print("ouch");
+            if (collision.gameObject.GetComponent<PhysicsObject>().lethalSpeed)
+            {
+                timeStop.Stop(0.2f);
+                currentBehavior = StartCoroutine(Damage(Vector2.zero, 3));
+            }
+        }
+    }
     IEnumerator Idle()
     {
         decidingNextBehavior = false;

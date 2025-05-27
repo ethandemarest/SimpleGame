@@ -12,9 +12,10 @@ public class PlayerController : MonoBehaviour
     public AnimationCurve animCurve;
     public float duration;
 
+    public GameObject currentHeldObj;
+
     //COMPONENTS
-    public GameObject currentFood;
-    public GameObject heldFood;
+    GameObject ObjectInReach;
     public GameObject hands;
     public GameObject attackZone;
     Rigidbody2D rb;
@@ -106,31 +107,25 @@ public class PlayerController : MonoBehaviour
         groundHit = Physics2D.BoxCast(transform.position, new Vector2(groundCastWidth,1), 0f, Vector2.down, groundDetectionRange, groundMask);
         foodHit = Physics2D.Raycast(transform.position + new Vector3(0f,1f), new Vector3(lastMove, 0f) * foodRange, 2, foodMask);
 
-        if (foodHit)
-        {
-            currentFood = foodHit.transform.gameObject;
-        }
-
         //PICK UP ITEM
-        if (grab && canGrab && foodHit && heldFood == null)
+        if (!currentHeldObj && grab && canGrab && foodHit)
         {
             StartCoroutine(ThrowDelay());
-            GameObject food = foodHit.transform.gameObject;     
-            food.GetComponent<Rigidbody2D>().isKinematic = true;
-            food.GetComponent<Rigidbody2D>().velocity = Vector2.zero;
-            food.GetComponent<Rigidbody2D>().angularVelocity = 0f;
-
-
-            food.transform.SetParent(hands.transform);
-            food.transform.position = hands.transform.position;
-            food.transform.rotation = Quaternion.Euler(Vector2.zero);
-            heldFood = food;
+            currentHeldObj = foodHit.transform.gameObject;
+            currentHeldObj.GetComponent<ExplosiveObject>().PickUp(hands.transform);
+        }
+        //DROP ITEM
+        if (currentHeldObj && grab && canGrab)
+        {
+            currentHeldObj.GetComponent<ExplosiveObject>().Drop();
+            StartCoroutine(ThrowDelay());
+            currentHeldObj = null;
         }
 
         if (attack)
         {
             //SWORD SWING
-            if (!heldFood && canAttack)
+            if (!currentHeldObj && canAttack)
             {
                 Vector2 attackDir = new Vector2(lastMove, 1);
                 attackZone.GetComponent<AttackBox>().Attack(attackDir);
@@ -139,31 +134,18 @@ public class PlayerController : MonoBehaviour
             }
 
             //THROW ITEM
-            if (heldFood && canGrab)
+            if (currentHeldObj && canGrab)
             {
                 StartCoroutine(ThrowDelay());
-                heldFood.transform.SetParent(null);
-                heldFood.GetComponent<Rigidbody2D>().isKinematic = false;
-                heldFood.GetComponent<Rigidbody2D>().AddForce(new Vector2(lastMove, 0.5f) * stats.throwSpeed);
-                heldFood.GetComponent<Rigidbody2D>().AddTorque(Random.Range(25f, 100f));
-                if (heldFood.GetComponent<ExplosiveObject>() != null)
+                currentHeldObj.GetComponent<ExplosiveObject>().Throw(new Vector2(lastMove, 0.5f) * stats.throwSpeed);
+                if (currentHeldObj.GetComponent<ExplosiveObject>() != null)
                 {
-                    heldFood.GetComponent<ExplosiveObject>().PrimeExplosive();
+                    currentHeldObj.GetComponent<ExplosiveObject>().PrimeExplosive();
                 }
-                heldFood = null;
+                currentHeldObj = null;
             }
         }
 
-        //DROP ITEM
-        if (heldFood && grab && canGrab)
-        {
-            StartCoroutine(ThrowDelay());
-            heldFood.transform.SetParent(null);
-            heldFood.GetComponent<Rigidbody2D>().isKinematic = false;
-            heldFood.GetComponent<Rigidbody2D>().AddForce(new Vector2(lastMove, 0.5f) * 50);
-            heldFood.GetComponent<Rigidbody2D>().AddTorque(Random.Range(25f, 100f));
-            heldFood = null;
-        }
 
         //JUMP
         if (jump && jumpCount <= 1)

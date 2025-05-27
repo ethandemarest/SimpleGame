@@ -6,6 +6,7 @@ public class Explosion : MonoBehaviour
 {
     public float timeAlive;
     public float timer;
+    public float force;
 
     void Awake()
     {
