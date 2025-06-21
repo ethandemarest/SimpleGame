@@ -9,13 +9,9 @@ public class PlayerController : MonoBehaviour
     PlayerStats stats;
     PlayerControls controls;
 
-    public AnimationCurve animCurve;
-    public float duration;
-
     public GameObject currentHeldObj;
 
     //COMPONENTS
-    GameObject ObjectInReach;
     public GameObject hands;
     public GameObject attackZone;
     Rigidbody2D rb;
@@ -26,13 +22,14 @@ public class PlayerController : MonoBehaviour
 
     //RAYCASTS
     public RaycastHit2D groundHit;
-    public RaycastHit2D foodHit;
+    public RaycastHit2D itemHit;
     public LayerMask groundMask;
-    public LayerMask foodMask;
+    public LayerMask itemMask;
     public float groundCastWidth;
     public float groundDetectionRange = 0.01f;
-    public float foodRange;
+    public float grabRange;
     public Vector3 handsOffset;
+    Vector2 startPos;
 
     //VECTORS
     [Header("||Vectors||")]
@@ -46,6 +43,7 @@ public class PlayerController : MonoBehaviour
     [HideInInspector]
     public bool grab;
     public bool jump;
+    bool reset;
     bool attack;
     public bool falling;
     [HideInInspector]
@@ -72,6 +70,7 @@ public class PlayerController : MonoBehaviour
         //MOVEMENT
         controls.Gameplay.Move.performed += ctx => movement = ctx.ReadValue<Vector2>();
         controls.Gameplay.Move.canceled += ctx => movement = Vector2.zero;
+        startPos = transform.position;
     }
 
     public void EnableControls()
@@ -101,19 +100,25 @@ public class PlayerController : MonoBehaviour
         jump = controls.Gameplay.Jump.triggered;
         grab = controls.Gameplay.Dash.triggered;
         attack = controls.Gameplay.Attack.triggered;
-
+        reset = controls.Gameplay.Reset.triggered;
 
         attackZone.transform.position = transform.position + new Vector3(lastMove*1.5f, 0) + new Vector3(0f,1f,0f);
-        groundHit = Physics2D.BoxCast(transform.position, new Vector2(groundCastWidth,1), 0f, Vector2.down, groundDetectionRange, groundMask);
-        foodHit = Physics2D.Raycast(transform.position + new Vector3(0f,1f), new Vector3(lastMove, 0f) * foodRange, 2, foodMask);
+        groundHit = Physics2D.BoxCast(transform.position, new Vector2(groundCastWidth,1), 0f, Vector2.down, groundDetectionRange);
+        itemHit = Physics2D.Raycast(transform.position + new Vector3(0f,1f), new Vector3(lastMove, 0f), grabRange, itemMask);
+
+        if (itemHit)
+        {
+            print("at least that's workign");
+        }
 
         //PICK UP ITEM
-        if (!currentHeldObj && grab && canGrab && foodHit)
+        if (!currentHeldObj && grab && canGrab && itemHit)  
         {
             StartCoroutine(ThrowDelay());
-            currentHeldObj = foodHit.transform.gameObject;
+            currentHeldObj = itemHit.transform.gameObject;
             currentHeldObj.GetComponent<ExplosiveObject>().PickUp(hands.transform);
         }
+
         //DROP ITEM
         if (currentHeldObj && grab && canGrab)
         {
@@ -172,6 +177,11 @@ public class PlayerController : MonoBehaviour
         {
             lastPlatformPos = platform.position;
         }
+        if (reset)
+        {
+            rb.velocity = Vector2.zero;
+            transform.position = startPos;
+        }
     }
 
     private void FixedUpdate()
@@ -221,7 +231,7 @@ public class PlayerController : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Ground") && groundHit)            
+        if (groundHit)            
         {
             GameObject gameObjectA = collision.gameObject;
             GameObject gameObjectB = groundHit.transform.gameObject;

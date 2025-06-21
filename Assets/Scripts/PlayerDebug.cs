@@ -22,8 +22,6 @@ public class PlayerDebug : MonoBehaviour
 
         //HANDS
 
-        Debug.DrawRay(transform.position + pc.handsOffset, new Vector3(pc.lastMove, 0f) * pc.foodRange, Color.yellow);
-
-
+        Debug.DrawRay(transform.position + pc.handsOffset, new Vector3(pc.lastMove, 0f) * pc.grabRange, Color.yellow);
     }
 }

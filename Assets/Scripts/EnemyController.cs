@@ -4,6 +4,10 @@ using UnityEngine;
 
 public class EnemyController : MonoBehaviour
 {
+    [Header("BRAIN")]
+    public string behavior;
+    public bool decidingNextBehavior = true;
+
     [Header("COMPONENTS")]
     public MathAnimations ma;
     public SpriteRenderer sp;
@@ -23,13 +27,13 @@ public class EnemyController : MonoBehaviour
     public float jumpDetectionRange;
     bool inFollowRange;
     bool inAttackRange;
-    public bool decidingNextBehavior = true;
     bool facing = true;
     bool hasDied;
     bool canJump = true;
     public int health;
     public float speed;
-
+    public float groundDetect;
+     
     [Header("ANIMATIONS")]
     public AnimationCurve jumpCurveX;
     public AnimationCurve jumpCurveY;
@@ -57,10 +61,11 @@ public class EnemyController : MonoBehaviour
         Debug.DrawRay(transform.position + new Vector3(0, 1f), -desiredDir * followRange, Color.red);
         Debug.DrawRay(transform.position + new Vector3(0, 0.8f), -desiredDir * attackRange, Color.green);
         Debug.DrawRay(transform.position + new Vector3(0, 0.6f), -desiredDir * jumpDetectionRange, Color.blue);
+        Debug.DrawRay(transform.position + new Vector3(-desiredDir.x, 0f), Vector2.down * groundDetect, Color.magenta);
 
         //CHECKS
         ledgeHit = Physics2D.Raycast(transform.position + new Vector3(0, 1f), -desiredDir, jumpDetectionRange, groundLayer);
-        //groundHit = Physics2D.Raycast(transform.position + new Vector3(0, 1f), -desiredDir, jumpDetectionRange, groundLayer);
+        groundHit = Physics2D.Raycast(transform.position + new Vector3(-desiredDir.x, 0f), Vector2.down, groundDetect, groundLayer);
 
         desiredDir = new Vector2(transform.position.x - player.transform.position.x, 0).normalized;
 
@@ -77,7 +82,7 @@ public class EnemyController : MonoBehaviour
         
         if (decidingNextBehavior)
         {
-            if (inFollowRange)
+            if (inFollowRange && groundHit)
             {
                 if (ledgeHit && canJump) //JUMP
                 {
@@ -115,14 +120,6 @@ public class EnemyController : MonoBehaviour
                 
             }
         }
-    }
-
-    void MoveEnemy()
-    {
-        float direction = (transform.position.x - player.transform.position.x) >= 0 ? -1 : 1;
-        enemyMov.x = direction * speed; 
-        enemyMov.y = Mathf.MoveTowards(transform.position.y, transform.position.y-1f, speed); // Gravity
-        rb.velocity = enemyMov + playerCounterForce;
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
@@ -167,9 +164,10 @@ public class EnemyController : MonoBehaviour
     }
     IEnumerator Idle()
     {
+        behavior = "Idle";
         decidingNextBehavior = false;
-
         animator.SetBool("Idle", true);
+        rb.velocity = Vector2.zero;
         while (!inFollowRange)
         {
             //DO Idle behavior
@@ -185,12 +183,24 @@ public class EnemyController : MonoBehaviour
 
     IEnumerator FollowPlayer()
     {
+        behavior = "Follow";
+
         decidingNextBehavior = false;
         animator.SetBool("Walk", true);
         while (inFollowRange)
         {
-            MoveEnemy();
+            float direction = (transform.position.x - player.transform.position.x) >= 0 ? -1 : 1;
+            enemyMov.x = direction * speed;
+            enemyMov.y = Mathf.MoveTowards(transform.position.y, transform.position.y - 1f, speed); // Gravity
+            rb.velocity = enemyMov + playerCounterForce;
 
+            if (!groundHit)
+            {
+                currentBehavior = StartCoroutine(Jump(player.GetComponent<PlayerController>().platform.gameObject));
+
+                //decidingNextBehavior = true;
+                yield break;
+            }
             if (inAttackRange)
             {
                 currentBehavior = StartCoroutine(AttackOne());
@@ -203,18 +213,21 @@ public class EnemyController : MonoBehaviour
             }
             yield return null;
         }
-        decidingNextBehavior = true;
     }
 
     IEnumerator Jump(GameObject platform)
     {
+        behavior = "Jump";
+
         animator.SetBool("Crouch", true);
         facing = false;
         rb.velocity = Vector2.zero;
         decidingNextBehavior = false;
         BoxCollider2D platformCol = platform.GetComponent<BoxCollider2D>();
 
-        float platformDistance = (platformCol.bounds.max.y - transform.position.y)/5;
+        //TEMP DEBUG
+        platform.GetComponent<SpriteRenderer>().color = Color.green;
+
         float posX;
         float landingZone = platform.GetComponent<BoxCollider2D>().bounds.max.y;
         float tempX;
@@ -233,11 +246,11 @@ public class EnemyController : MonoBehaviour
 
         animator.SetBool("Jump", true);
 
-        while (timeElapsed < platformDistance)
+        while (timeElapsed < 1f)
         {
-            float t1 = timeElapsed / platformDistance;
+            float t1 = timeElapsed / 1f;
             t1 = jumpCurveX.Evaluate(t1);
-            float t2 = timeElapsed / platformDistance;
+            float t2 = timeElapsed / 1f;
             t2 = jumpCurveY.Evaluate(t2);
 
             landingPos = Mathf.Lerp(startPos.y, landingZone, t1);
@@ -249,6 +262,7 @@ public class EnemyController : MonoBehaviour
 
             yield return null;
         }
+        platform.GetComponent<SpriteRenderer>().color = Color.white;
 
         animator.SetBool("Crouch", true);
 
@@ -266,6 +280,8 @@ public class EnemyController : MonoBehaviour
 
     IEnumerator AttackOne()
     {
+        behavior = "Attack";
+
         decidingNextBehavior = false;
         rb.velocity = Vector2.zero;
         animator.SetBool("Aim", true);
@@ -278,6 +294,7 @@ public class EnemyController : MonoBehaviour
         attackZone.GetComponent<AttackBox>().Attack(Vector2.zero);
 
         yield return new WaitForSeconds(1f);
+
         animator.SetBool("Idle", true);
         facing = true;
         decidingNextBehavior = true;
@@ -285,15 +302,16 @@ public class EnemyController : MonoBehaviour
 
     IEnumerator Damage(Vector2 damageDir, int damageVal)
     {
+        behavior = "Damage";
+
         health -= damageVal;
         if (health <= 0 && !hasDied)
         {
             hasDied = true;
             Death();
         }
-
         decidingNextBehavior = false;
-        //Hit Animation
+        animator.SetBool("Hit", true);
         facing = false;
         sp.color = new Color(1f, 1f, 1f, 0.5f);
 
@@ -315,7 +333,6 @@ public class EnemyController : MonoBehaviour
         facing = true;
         decidingNextBehavior = true;
     }
-
     void Death()
     {
         foreach (GameObject gameObject in bodyparts)

@@ -1,14 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using EZCameraShake;
 
 public class ExplosiveObject : MonoBehaviour
 {
+    SpriteRenderer sp;
+    Rigidbody2D rb;
+
     public GameObject explosion;
     public float force;
     bool primed;
-    SpriteRenderer sp;
-    Rigidbody2D rb;
     public Sprite barrelGround;
     public Sprite barrelHeld;
     // Start is called before the first frame update
@@ -64,6 +66,18 @@ public class ExplosiveObject : MonoBehaviour
                 StartCoroutine(ExplodeDelay(0f));
             }
         }
+
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            if (collision.gameObject.GetComponent<PhysicsObject>())
+            {
+                if (collision.gameObject.GetComponent<PhysicsObject>().lethalSpeed)
+                {
+                    StartCoroutine(ExplodeDelay(0f));
+                }
+            }
+        }
+
     }
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -76,13 +90,16 @@ public class ExplosiveObject : MonoBehaviour
             StartCoroutine(ExplodeDelay(0.8f));
         }
     }
-
     IEnumerator ExplodeDelay(float delayTime)
     {
         sp.color = Color.red;
         primed = false;
+
         yield return new WaitForSeconds(delayTime);
-        var bomb = Instantiate(explosion, transform.position, Quaternion.Euler(new Vector3(0f, 0f, Random.Range(0f, 359f))));
+
+        CameraShaker.Instance.ShakeOnce(20, 8, 0, 1);
+        float randomSpin = Random.Range(0f, 359f);
+        var bomb = Instantiate(explosion, transform.position, Quaternion.Euler(Vector3.forward * randomSpin));
         bomb.GetComponent<Explosion>().force = force;
         Destroy(gameObject);
     }

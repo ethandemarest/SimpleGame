@@ -16,7 +16,7 @@ TagManager:
   - Ground
   - Water
   - UI
-  - Food
+  - Item
   - Effects
   - Player
   - Enemy
